@@ -9,45 +9,43 @@ function normalizeLevelOut(level?: string) {
   return level.replace(/^NLQF(\d)$/i, 'NLQF-$1');
 }
 
-// DB-→API
+// DB naar API
 function toApiModel(doc: any) {
   
   return {
     _id: doc._id,
-    code: String(doc.code ?? doc.id ?? doc._id),           
+    code: String(doc.code),           
     name: doc.name,
     description: doc.shortdescription ?? doc.description ?? '',
     ec: Number(doc.ec) || undefined,
     level: normalizeLevelOut(doc.level),
     location: doc.location ?? null,
     contactId: doc.contact_id ?? null,
-    learningoutcomes: doc.learningoutcomes ?? null,
+    learningOutcomes: doc.learningOutcomes ?? null, 
   };
 }
 
-// API-→DB (bij POST/PATCH)
+// API naar DB (bij POST/PATCH)
 function toDbFromDto(dto: {
   code?: string;
   name?: string;
   ec?: number;
   level?: string;          
-  theme?: string;
-  type?: 'verdiepend' | 'verbredend';
   description?: string;
-  tags?: string[];
+  location?: string;
+  learningOutcomes?: string;
 }) {
   const out: any = {};
   if (dto.code !== undefined) out.code = dto.code;
   if (dto.name !== undefined) out.name = dto.name;
   if (dto.ec !== undefined) out.ec = Number(dto.ec);
   if (dto.level !== undefined) out.level = dto.level.replace('-', ''); 
-  if (dto.theme !== undefined) out.theme = dto.theme;
-  if (dto.type !== undefined) out.type = dto.type;
+  if (dto.location !== undefined) out.location = dto.location; 
+  if (dto.learningOutcomes !== undefined) out.learningOutcomes = dto.learningOutcomes;
   if (dto.description !== undefined) {
     // je kunt het in 'shortdescription' of 'description' stoppen; kies er één
     out.shortdescription = dto.description;
   }
-  if (dto.tags !== undefined) out.tags = dto.tags;
   return out;
 }
 
@@ -61,7 +59,7 @@ export class VkmService {
   if (params.ec !== undefined) filter.ec = Number(params.ec);
   if (params.level) filter.level = new RegExp(params.level.replace('-', ''), 'i');
   if (params.name) filter.name = new RegExp(params.name, 'i');
-  if (params.location) filter.location = new RegExp(params.location, 'i');  // <-- nieuw
+  if (params.location) filter.location = new RegExp(params.location, 'i');  
 
   if (params.query) {
     filter.$or = [
@@ -69,7 +67,7 @@ export class VkmService {
       { shortdescription: new RegExp(params.query, 'i') },
       { description: new RegExp(params.query, 'i') },
       { content: new RegExp(params.query, 'i') },
-      { learningoutcomes: new RegExp(params.query, 'i') },
+      { learningOutcomes: new RegExp(params.query, 'i') },
       { location: new RegExp(params.query, 'i') },
     ];
   }

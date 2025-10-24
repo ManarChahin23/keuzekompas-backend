@@ -10,6 +10,7 @@ class CreateVkmDto {
   @IsEnum(['NLQF-5', 'NLQF-6'] as any) level!: 'NLQF-5' | 'NLQF-6';
   @IsOptional() @IsString() location?: string;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() learningOutcomes?: string;
 }
 class UpdateVkmDto extends PartialType(CreateVkmDto) {}
 
@@ -23,7 +24,7 @@ export class VkmController {
     @Query('ec') ec?: string,
     @Query('level') level?: string,
     @Query('name') name?: string,
-    @Query('location') location?: string, 
+    @Query('location') location?: string,
   ) {
     return this.service.findAll({
       query,
@@ -49,3 +50,4 @@ export class VkmController {
     return this.service.update(id, dto);
   }
 }
+ 

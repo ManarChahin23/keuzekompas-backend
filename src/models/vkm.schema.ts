@@ -5,7 +5,6 @@ import { Document } from 'mongoose';
 @Schema({ timestamps: true, collection: 'vkm_modules' })
 export class Vkm extends Document {
   @Prop() code?: string;
-  
   @Prop() name: string;
   @Prop() shortdescription?: string;
   @Prop() description?: string;
@@ -14,6 +13,6 @@ export class Vkm extends Document {
   @Prop() location?: string;
   @Prop() contact_id?: string;
   @Prop() level?: string;
-  @Prop() learningoutcomes?: string;
+  @Prop() learningOutcomes?: string;
 }
 export const VkmSchema = SchemaFactory.createForClass(Vkm);
