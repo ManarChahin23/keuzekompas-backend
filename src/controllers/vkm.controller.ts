@@ -19,6 +19,7 @@ class CreateVkmDto {
   level!: 'NLQF-5' | 'NLQF-6';
   @IsOptional() @IsString() location?: string;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() learningOutcomes?: string;
 }
 class UpdateVkmDto extends PartialType(CreateVkmDto) {}
 

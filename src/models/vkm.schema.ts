@@ -4,8 +4,6 @@ import { Types } from 'mongoose';
 @Schema({ timestamps: true, collection: 'vkm_modules' })
 export class Vkm {
   declare _id: Types.ObjectId;
-
-  // Ondersteunt het lezen van bestaande documenten met een legacy id.
   declare id?: string;
 
   @Prop()
@@ -37,6 +35,9 @@ export class Vkm {
 
   @Prop()
   learningoutcomes?: string;
+
+  @Prop()
+  learningOutcomes?: string;
 }
 
 export const VkmSchema = SchemaFactory.createForClass(Vkm);

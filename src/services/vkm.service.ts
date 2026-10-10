@@ -11,6 +11,7 @@ interface VkmWriteInput {
   level?: string;
   location?: string;
   description?: string;
+  learningOutcomes?: string;
 }
 
 interface VkmSearchInput {
@@ -26,6 +27,8 @@ function normalizeLevelOut(level?: string) {
 }
 
 function toApiModel(doc: Vkm) {
+  const learningOutcomes = doc.learningOutcomes ?? doc.learningoutcomes ?? null;
+
   return {
     _id: doc._id.toHexString(),
     code: doc.code ?? doc.id ?? doc._id.toHexString(),
@@ -35,7 +38,8 @@ function toApiModel(doc: Vkm) {
     level: normalizeLevelOut(doc.level),
     location: doc.location ?? null,
     contactId: doc.contact_id ?? null,
-    learningoutcomes: doc.learningoutcomes ?? null,
+    learningOutcomes,
+    learningoutcomes: learningOutcomes,
   };
 }
 
@@ -56,6 +60,10 @@ function toDbFromDto(dto: VkmWriteInput): Partial<Vkm> {
 
   if (dto.description !== undefined) {
     out.shortdescription = dto.description;
+  }
+
+  if (dto.learningOutcomes !== undefined) {
+    out.learningOutcomes = dto.learningOutcomes;
   }
 
   return out;
@@ -95,6 +103,7 @@ export class VkmService {
         { shortdescription: search },
         { description: search },
         { content: search },
+        { learningOutcomes: search },
         { learningoutcomes: search },
         { location: search },
       ];
