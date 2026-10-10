@@ -6,10 +6,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { VkmService } from '../services/vkm.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TeacherGuard } from '../auth/teacher.guard';
 
 class CreateVkmDto {
   @IsOptional() @IsString() code?: string; // vrije "docentcode" (niet verplicht)
@@ -50,11 +53,13 @@ export class VkmController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard, TeacherGuard)
   create(@Body() dto: CreateVkmDto) {
     return this.service.create(dto);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, TeacherGuard)
   update(@Param('id') id: string, @Body() dto: UpdateVkmDto) {
     return this.service.update(id, dto);
   }

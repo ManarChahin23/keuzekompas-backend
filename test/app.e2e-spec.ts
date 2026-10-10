@@ -6,6 +6,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { Model } from 'mongoose';
 import request from 'supertest';
+import { Role } from '@prisma/client';
 
 import { AppModule } from '../src/app.module';
 import { Vkm } from '../src/models/vkm.schema';
@@ -19,10 +20,13 @@ describe('Keuzekompas API (e2e)', () => {
   let moduleId: string;
   let token1: string;
   let token2: string;
+  let teacherToken: string;
 
   const suffix = randomUUID();
   const email1 = `e2e-1-${suffix}@example.com`;
   const email2 = `e2e-2-${suffix}@example.com`;
+  const teacherEmail = `e2e-teacher-${suffix}@example.com`;
+  const teacherModuleCode = `E2E-TEACHER-${suffix}`;
   const password = 'Testwachtwoord123!';
 
   beforeAll(async () => {
@@ -75,6 +79,32 @@ describe('Keuzekompas API (e2e)', () => {
       })
       .expect(201);
 
+    await request(server)
+      .post('/auth/register')
+      .send({
+        name: 'E2E docent',
+        email: teacherEmail,
+        password,
+      })
+      .expect(201);
+
+    // Alleen de testopzet kent deze gebruiker rechtstreeks een docentrol toe.
+    // Een gebruiker kan zichzelf via de API niet tot docent maken.
+    await prisma.user.update({
+      where: { email: teacherEmail },
+      data: { role: Role.TEACHER },
+    });
+
+    const teacherLogin = await request(server)
+      .post('/auth/login')
+      .send({ email: teacherEmail, password })
+      .expect(200);
+
+    teacherToken = (teacherLogin.body as { access_token: string }).access_token;
+
+    expect(typeof teacherToken).toBe('string');
+    expect(teacherToken.length).toBeGreaterThan(0);
+
     const login1 = await request(server)
       .post('/auth/login')
       .send({ email: email1, password })
@@ -98,21 +128,131 @@ describe('Keuzekompas API (e2e)', () => {
     if (!app) return;
 
     try {
-      if (modules && moduleId) {
-        await modules.deleteOne({ _id: moduleId });
+      if (modules) {
+        if (moduleId) {
+          await modules.deleteOne({ _id: moduleId });
+        }
+
+        await modules.deleteMany({
+          code: teacherModuleCode,
+        });
       }
 
       if (prisma) {
         // SavedModule-records verdwijnen door onDelete: Cascade.
         await prisma.user.deleteMany({
           where: {
-            email: { in: [email1, email2] },
+            email: { in: [email1, email2, teacherEmail] },
           },
         });
       }
     } finally {
       await app.close();
     }
+  });
+
+  it('laat modules bekijken zonder JWT', async () => {
+    await request(server).get('/vkm').expect(200);
+
+    const response = await request(server).get(`/vkm/${moduleId}`).expect(200);
+
+    expect(response.body).toMatchObject({
+      _id: moduleId,
+      name: `E2E testmodule ${suffix}`,
+    });
+  });
+
+  it('weigert modules aanmaken en wijzigen zonder JWT', async () => {
+    await request(server)
+      .post('/vkm')
+      .send({
+        code: teacherModuleCode,
+        name: 'Ongeautoriseerde module',
+        ec: 30,
+        level: 'NLQF-6',
+      })
+      .expect(401);
+
+    await request(server)
+      .patch(`/vkm/${moduleId}`)
+      .send({ name: 'Ongeautoriseerde wijziging' })
+      .expect(401);
+  });
+
+  it('weigert modules aanmaken en wijzigen als student', async () => {
+    await request(server)
+      .post('/vkm')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({
+        code: teacherModuleCode,
+        name: 'Module van student',
+        ec: 30,
+        level: 'NLQF-6',
+      })
+      .expect(403);
+
+    await request(server)
+      .patch(`/vkm/${moduleId}`)
+      .set('Authorization', `Bearer ${token1}`)
+      .send({ name: 'Wijziging door student' })
+      .expect(403);
+
+    // De geweigerde aanvragen mogen geen gegevens wijzigen.
+    const existingModule = await request(server)
+      .get(`/vkm/${moduleId}`)
+      .expect(200);
+
+    expect(existingModule.body).toMatchObject({
+      name: `E2E testmodule ${suffix}`,
+    });
+
+    expect(await modules.exists({ code: teacherModuleCode })).toBeNull();
+  });
+
+  it('laat een docent een module aanmaken en wijzigen', async () => {
+    const created = await request(server)
+      .post('/vkm')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        code: teacherModuleCode,
+        name: `Docentmodule ${suffix}`,
+        ec: 30,
+        level: 'NLQF-6',
+        location: 'Breda',
+      })
+      .expect(201);
+
+    expect(created.body).toMatchObject({
+      code: teacherModuleCode,
+      name: `Docentmodule ${suffix}`,
+    });
+
+    const createdId = (created.body as { _id: string })._id;
+
+    expect(typeof createdId).toBe('string');
+    expect(createdId).toHaveLength(24);
+
+    const updated = await request(server)
+      .patch(`/vkm/${createdId}`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        name: `Gewijzigde docentmodule ${suffix}`,
+      })
+      .expect(200);
+
+    expect(updated.body).toMatchObject({
+      _id: createdId,
+      name: `Gewijzigde docentmodule ${suffix}`,
+    });
+
+    // Controleer dat de wijziging ook is opgeslagen.
+    const persisted = await request(server)
+      .get(`/vkm/${createdId}`)
+      .expect(200);
+
+    expect(persisted.body).toMatchObject({
+      name: `Gewijzigde docentmodule ${suffix}`,
+    });
   });
 
   it('weigert toegang zonder JWT', async () => {
