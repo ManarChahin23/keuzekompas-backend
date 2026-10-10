@@ -1,5 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { IsEnum, IsNumber, IsOptional, IsString, IsArray } from 'class-validator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
 import { VkmService } from '../services/vkm.service';
 
@@ -7,7 +15,8 @@ class CreateVkmDto {
   @IsOptional() @IsString() code?: string; // vrije "docentcode" (niet verplicht)
   @IsString() name!: string;
   @IsNumber() ec!: number;
-  @IsEnum(['NLQF-5', 'NLQF-6'] as any) level!: 'NLQF-5' | 'NLQF-6';
+  @IsIn(['NLQF-5', 'NLQF-6'])
+  level!: 'NLQF-5' | 'NLQF-6';
   @IsOptional() @IsString() location?: string;
   @IsOptional() @IsString() description?: string;
 }
@@ -23,7 +32,7 @@ export class VkmController {
     @Query('ec') ec?: string,
     @Query('level') level?: string,
     @Query('name') name?: string,
-    @Query('location') location?: string, 
+    @Query('location') location?: string,
   ) {
     return this.service.findAll({
       query,

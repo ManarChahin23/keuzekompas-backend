@@ -1,33 +1,77 @@
-name: CI - Backend Tests
+name: Backend CI
 
 on:
   push:
-    branches: ['**']
   pull_request:
-    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  test:
+  checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DATABASE_URL: postgresql://ci_user:ci_password@127.0.0.1:5432/keuzekompas_test?schema=public
+      MONGODB_URI: mongodb://127.0.0.1:27017/keuzekompas_test
+      JWT_SECRET: uitsluitend-voor-ci-tests-geen-productiesleutel
+      PORT: '8080'
+      CORS_ORIGIN: http://localhost:3000
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: keuzekompas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d keuzekompas_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1}).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
-      - name: Checkout code
+      - name: Code ophalen
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Node.js instellen
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
+          node-version: '22'
+          cache: npm
 
-      - name: Install dependencies
+      - name: Dependencies installeren
         run: npm ci
 
-      - name: Lint
-        run: npm run lint --if-present || echo "Lint warnings ignored"
+      - name: Prisma Client genereren
+        run: npx prisma generate
 
-      - name: Build (optioneel)
-        run: npm run build --if-present || echo "Build warnings ignored"
+      - name: Migraties uitvoeren
+        run: npx prisma migrate deploy
 
-      - name: Run tests
-        run: npm test --if-present -- --ci
+      - name: Lint controleren
+        run: npx eslint "{src,apps,libs,test}/**/*.ts" --max-warnings 0
+
+      - name: Build controleren
+        run: npm run build
+
+      - name: Unit tests uitvoeren
+        run: npm test -- --ci --runInBand
+
+      - name: API-E2E-tests uitvoeren
+        run: npm run test:e2e -- --ci --runInBand
